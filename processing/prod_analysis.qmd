@@ -1,0 +1,455 @@
+---
+title: "Análisis de clases latentes Encuesta ICSOH-UDP"
+author:
+  - name: Andreas Laffert
+    corresponding: true
+    orcid: 0000-0002-9008-2454
+    email: andreas.laffert@ug.uchile.cl 
+    affiliations:
+      - ref: 1  
+affiliations: 
+  - id: 1
+    name: Observatorio de Desigualdades, UDP
+date: today
+lang: es
+fontsize: 12pt
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+    toc: true
+    toc-location: right
+    toc-depth: 2
+    toc-expand: 2
+    toc-title: Contents
+    number-sections: true
+    number-depth: 3
+    theme:
+      - cosmo
+      - edumer_html.scss
+    code-link: true
+    title-block-banner: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+#| label: set
+#| echo: false
+#| message: false
+#| warning: false
+
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE, include = TRUE, warning = FALSE, message = FALSE)
+
+table_format <- if(is_html_output()) {
+  "html"
+} else if(is_latex_output()) {
+  "latex"
+}
+table_format2 <- if(is_html_output()) {
+  T
+} else if(is_latex_output()) {
+  F
+}
+
+options(kableExtra.html.bsTable = T)
+options(knitr.kable.NA = "")
+```
+
+# Objetivo
+
+En este documento se desarrolla un análisis de clases latentes (LCA) a un conjunto de ítems que miden actitudes hacia la intervención del Estado y el mercado en el bienestar (Serie Clima Social 2026, Ola 1), con el fin de identificar perfiles latentes distintivos de cómo las personas combinan la aceptación de trade-offs de mercado con preferencias institucionales sobre la provisión pública, privada o mixta de servicios.
+
+En lugar de centrarse en validar un modelo de medición preestablecido, el análisis busca develar patrones de configuración de respuestas a través de los ítems, identificando así tipologías empíricamente fundamentadas de orientaciones Estado-mercado.
+
+El dataset utilizado es `UDP Junio 2026 - Datos.sav`.
+
+# Datos
+
+- Encuesta: Serie Clima Social 2026 — Ola 1 ("Garantías sociales en tiempos de incertidumbre")
+- Modo: Encuesta online (CAWI), panel Ipsos
+- Población: Adultos en Chile (cobertura nacional)
+- Trabajo de campo: 2–8 de junio de 2026
+- Muestreo: panel online, con control de cuotas ex ante por macro zona, sexo, edad, nivel educacional y GSE, y calibración ex post (DEFF ≈ 2,35; N efectivo ≈ 639)
+- Tamaño muestral: N = 1.500 casos efectivos
+- Muestra analítica (LCA): N = 1.500 (sin pérdida de casos por valores perdidos en los ítems utilizados)
+
+# Medidas
+
+El análisis utiliza nueve ítems agrupados en dos bloques temáticos, seleccionados mediante un proceso de screening previo (análisis de distribuciones, matriz de correlaciones policóricas, y análisis factorial exploratorio):
+
+**Trade-offs de mercado** (3 ítems, escala de acuerdo de 4 puntos): aceptación de sacrificios concretos —en desigualdad, protección ambiental y derechos laborales— a cambio de crecimiento económico o generación de empleo.
+
+**Preferencia institucional por dominio** (6 ítems, escala de 3 categorías: Estado / Mixto / Privado): preferencia de modelo de provisión en pensiones, salud, educación escolar, educación universitaria, cuidado infantil y cuidado de personas mayores.
+
+Dos ítems adicionales (intervención general del Estado en la economía, y un ítem sobre tamaño/costo del Estado) fueron evaluados en el screening inicial pero excluidos del modelo final por baja carga factorial y débil poder discriminante.
+
+# Método
+
+## Análisis de clases latentes
+
+El análisis de clases latentes (LCA) es un método estadístico que modela las asociaciones entre variables observadas asumiendo que una variable latente categórica no observada explica su estructura subyacente. Esta variable latente representa subgrupos discretos dentro de la población, donde los individuos de una misma clase comparten patrones de respuesta similares.
+
+El LCA es especialmente apropiado para indicadores categóricos y ordinales, como ítems de escala Likert.
+
+### Propósito analítico
+
+El LCA puede tener propósitos tanto exploratorios como confirmatorios.
+
+- Como técnica exploratoria, identifica tipologías latentes de configuraciones actitudinales.
+- Como técnica confirmatoria, permite poner a prueba hipótesis sobre heterogeneidad en la población.
+
+Sustantivamente, el LCA permite derivar tipos ideales empíricamente fundamentados de orientaciones Estado-mercado.
+
+### Supuestos clave
+
+- Cada individuo pertenece a una clase latente.
+- Los individuos dentro de una misma clase comparten probabilidades de respuesta similares.
+- Los indicadores observados son condicionalmente independientes una vez controlada la pertenencia de clase (independencia local).
+
+### Parámetros del modelo
+
+El modelo estima dos conjuntos principales de parámetros:
+
+1. Probabilidades de clase  
+  - Indican la probabilidad de pertenecer a cada clase latente y reflejan el tamaño relativo de cada grupo en la población.
+
+2. Probabilidades de respuesta condicional  
+  - Indican la probabilidad de elegir una categoría de respuesta particular, dado la pertenencia a una clase latente. Estos parámetros se usan para interpretar y etiquetar las clases.
+
+## Interpretación
+
+Las clases latentes se definen por perfiles de respuesta distintivos a través de los ítems. Estos perfiles capturan distintas combinaciones de:
+
+- aceptación de trade-offs de mercado
+- preferencias normativas sobre provisión pública, privada o mixta
+
+Esto permite identificar sistemas de creencias complejos en los que las personas pueden, por ejemplo, aceptar ciertos trade-offs de mercado mientras simultáneamente prefieren modelos de provisión mixtos o estatales en dominios concretos de servicios — o viceversa.
+
+## Estimación y ajuste del modelo
+
+Los modelos se estiman de forma iterativa, incrementando el número de clases.
+
+La selección del modelo se basa principalmente en criterios de ajuste estándar, especialmente:
+
+- Criterio de Información Bayesiano (BIC)
+- Criterio de Información de Akaike (AIC)
+
+Valores más bajos indican mejor ajuste, equilibrando a la vez complejidad y parsimonia del modelo.
+
+## Contribución
+
+Esta estrategia desplaza el análisis desde un enfoque centrado en variables hacia uno centrado en personas. Al hacerlo, permite:
+
+- capturar heterogeneidad en los sistemas de creencias sobre Estado y mercado
+- identificar subgrupos significativos de encuestados
+- examinar cómo coexisten en los individuos la aceptación de trade-offs de mercado y las preferencias institucionales de provisión
+
+# Análisis
+
+```{r}
+#| label: source
+#| echo: false
+#| results: false
+#| message: false
+#| warning: false
+#| include: false
+
+
+library(here)
+source(file = here("processing/lca_junio.R"))
+
+```
+
+
+## Descriptivos
+
+```{r}
+#| label: tbl-summary1
+#| tbl-cap: "Descriptive statistics"
+#| tbl-cap-location: top
+
+library(summarytools)
+t1 <- db_proc |> 
+  select(vars_lca)
+
+df<-dfSummary(t1,
+               plain.ascii = FALSE,
+               style = "multiline",
+               tmp.img.dir = "/tmp",
+               graph.magnif = 0.75,
+               headings = F,  # encabezado
+               varnumbers = F, # num variable
+               labels.col = T, # etiquetas
+               na.col = T,    # missing
+               graph.col = T, # plot
+               valid.col = T, # n valido
+               col.widths = c(20,10,10,10,10,10))
+
+df$Variable <- NULL # delete variable column
+
+print(df, method="render")
+```
+
+
+
+```{r}
+#| label: fig-cor
+#| out-width: '80%'
+#| fig-asp: 0.8
+#| fig-cap: "Correlation matrix"
+#| fig-cap-location: top
+
+corrplot::corrplot(M$rho,
+                   method = "color",
+                   addCoef.col = "black",
+                   type = "upper",
+                   tl.col = "black",
+                   col = colorRampPalette(c("#E16462", "white", "#0D0887"))(12),
+                   bg = "white",
+                   na.label = "-") 
+
+```
+
+
+## Análisis de clases latentes
+
+Estimamos modelos de clases latentes con entre una y cinco clases. El ajuste del modelo mejoró de manera monotónica a medida que aumentó el número de clases, como lo indican la disminución de los valores de AIC y BIC, y las pruebas de razón de verosimilitud estadísticamente significativas en cada paso (@tbl-fit).
+
+```{r}
+#| label: tbl-fit
+#| tbl-cap: "Comparación de ajuste entre modelos"
+#| tbl-cap-location: top
+
+# ---- build table (no list-cols) -----------------------------------------
+
+fit_tbl_report %>% 
+ kableExtra::kable(format = "html",
+                    align = "c",
+                    booktabs = T,
+                    escape = F,
+                    caption = NULL) %>%
+  kableExtra::kable_styling(full_width = T,
+                            latex_options = "hold_position",
+                            bootstrap_options=c("striped", "bordered", "condensed"),
+                            font_size = 23) %>%
+  kableExtra::column_spec(c(1,8), width = "3.5cm") %>% 
+  kableExtra::column_spec(2:7, width = "4cm") %>% 
+  kableExtra::column_spec(4, width = "5cm")
+
+```
+
+```{r}
+#| label: fig-visaic
+#| out-width: '80%'
+#| fig-asp: 0.8
+#| fig-cap: "Visual: AIC/BIC por K (menor es mejor)"
+#| fig-cap-location: top
+
+
+# Visual: AIC/BIC by K (lower is better)
+ggplot(fit_long, aes(x = K, y = value, group = criterion)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~criterion, scales = "free_y") +
+  labs(x = "Number de clases (K)", y = "Valor")
+
+
+```
+
+```{r}
+#| label: fig-dfvisaic
+#| out-width: '80%'
+#| fig-asp: 0.8
+#| fig-cap: "ΔAIC y ΔBIC (negativo = mejora respecto a K-1)"
+#| fig-cap-location: top
+
+# Visual: ΔAIC and ΔBIC (negative = improvement over K-1)
+
+ggplot(delta_long, aes(x = K, y = value, group = delta)) +
+  geom_hline(yintercept = 0) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~delta, scales = "free_y") +
+  labs(x = "K", y = "Cambio vs K-1 (negativo = mejor)") 
+```
+
+
+
+Sin embargo, la mejora incremental en el ajuste del modelo disminuyó sustancialmente más allá de la solución de tres clases. Mientras que el paso de una a tres clases produjo reducciones importantes tanto en el AIC como en el BIC, las soluciones de cuatro (AIC = 24235.2; BIC = 24697.5) y cinco clases (AIC = 23825.6; BIC = 24404.7) aportaron solo mejoras modestas adicionales en comparación con la solución de tres clases. Por lo tanto, aunque el modelo de cinco clases presentó un ajuste estadísticamente superior, la magnitud de esta mejora fue relativamente limitada (véanse @fig-visaic y @fig-dfvisaic).
+
+Esta conclusión se ve reforzada por los valores de entropía presentados en @fig-entropy. La entropía aumentó sustancialmente al pasar de una a tres clases, lo que indica una mejora significativa en la calidad de la clasificación de los individuos. Sin embargo, este indicador disminuyó en las soluciones de cuatro y cinco clases, lo que sugiere que la incorporación de clases adicionales no contribuyó a una mejor diferenciación entre los grupos latentes.
+
+```{r}
+#| label: fig-entropy
+#| out-width: '80%'
+#| fig-asp: 0.8
+#| fig-cap: "Entropía por número de clases"
+#| fig-cap-location: top
+
+ggplot(fit_tbl, aes(x = K, y = entropy)) +
+  geom_hline(yintercept = 0.80, linetype = "dashed", color = "grey50") +
+  geom_line() +
+  geom_point() +
+  labs(x = "Number of classes (K)", y = "Entropy (relative)",
+       title = "Entropía por número de clases")
+```
+
+
+En consecuencia, se seleccionó la solución de tres clases como modelo final. Esta decisión se fundamentó tanto en criterios estadísticos como en criterios sustantivos. Por una parte, el modelo de tres clases mostró un ajuste adecuado a los datos, manteniendo un nivel razonable de parsimonia y una clara interpretabilidad de las clases identificadas. Por otra parte, las soluciones con un mayor número de clases aportaron una diferenciación adicional limitada, insuficiente para justificar el aumento de la complejidad del modelo. En este sentido, la solución de tres clases representa la caracterización más robusta y conceptualmente coherente de la estructura latente observada en los datos.
+
+## Modelo de tres clases latentes
+
+La @tbl-prevalence muestra las probabilidades condicionales de respuesta asociadas a cada clase latente y sus tamaños respectivos. La solución de tres clases sugiere que los respondentes no se diferencian principalmente a lo largo de un continuo simple de "más estatista" a "más promercado". En cambio, las clases latentes se organizan por combinaciones distintivas de: (1) aceptación de trade-offs de mercado en dominios concretos (crecimiento vs. desigualdad, empleo vs. medioambiente, empleo vs. derechos laborales), y (2) preferencias normativas sobre quién debería proveer los servicios de bienestar (Estado, privados o un modelo mixto). Como tal, los resultados revelan heterogeneidad no solo en las posiciones generales sobre el rol del Estado, sino también en la disposición a aceptar costos redistributivos y en las preferencias institucionales por dominio de política. Esta interpretación es consistente con los perfiles de respuesta por ítem a través de las clases.
+
+Dos patrones más amplios estructuran la solución de clases. Primero, las preferencias por provisión estatal son altas en la mayoría de las clases y en la mayoría de los dominios, especialmente en salud y educación escolar, lo que sugiere que el apoyo a algún grado de intervención estatal es mayoritario en la población. Segundo, la principal línea de diferenciación no radica en si se prefiere o no al Estado como proveedor, sino en la disposición a aceptar que el mercado opere junto al Estado —ya sea en forma de trade-offs o de provisión privada para quienes pueden pagarla. En otras palabras, las clases se diferencian menos en su rechazo al Estado y más en cuánto espacio normativo le conceden al mercado.
+
+```{r}
+#| label: fig-prob
+#| out-width: '80%'
+#| fig-asp: 0.8
+#| fig-cap: "P(endorsement | class) para cada item"
+#| fig-cap-location: top
+
+library(plotly)
+
+g_class <- ggplot(p_endorse, aes(x = variable, y = e_norm, group = factor(class), colour = factor(class))) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 2) +
+  MetBrewer::scale_color_met_d("VanGogh2") +
+  coord_cartesian(ylim = c(0, 1)) +
+  coord_flip() +
+  labs(x = "Ítem", 
+       y = "Puntaje esperado normalizado\n(0 = Estado/desacuerdo, 1 = Mercado/acuerdo)",
+       colour = "Clase") +
+  theme(legend.position = "bottom",
+        text = element_text(size = 14))
+
+g_class
+```
+
+
+```{r}
+#| label: tbl-prevalence
+#| tbl-cap: "Items x clases con probabilidades"
+#| tbl-cap-location: top
+
+report_probs2 %>%
+  kableExtra::kable(format = "html",
+                    align = "c",
+                    booktabs = TRUE,
+                    escape = FALSE,
+                    caption = "Puntaje esperado normalizado por ítem y clase (K=3)") %>%
+  kableExtra::kable_styling(full_width = TRUE,
+                            latex_options = "hold_position",
+                            bootstrap_options = c("striped", "bordered", "condensed"),
+                            font_size = 23)
+
+```
+
+
+
+**Clase 1: Estatista consistente (46.3%)**
+
+La primera clase es la más numerosa y se caracteriza por un rechazo generalizado a los trade-offs de mercado y una preferencia marcada por la provisión estatal en todos los dominios de bienestar. Los puntajes esperados en los ítems de trade-off son bajos (0.27–0.32), indicando desacuerdo con sacrificar derechos laborales, protección ambiental o igualdad distributiva en favor del crecimiento económico o el empleo. La preferencia por provisión estatal es aún más pronunciada en los ítems institucionales, con puntajes cercanos a cero en salud (0.07) y educación escolar (0.04), lo que refleja una inclinación casi exclusiva hacia el Estado como proveedor gratuito e igualitario.
+
+Sustantivamente, esta clase combina un rechazo normativo a los costos redistributivos del mercado con una preferencia firme por la universalidad de los servicios públicos. No se trata de una posición que simplemente prefiera al Estado "por defecto", sino de una orientación coherente en la que tanto los trade-offs como la provisión privada son percibidos como inaceptables. Es la clase que más consistentemente expresa una visión de la protección social como derecho garantizado por el Estado, independientemente del dominio de política.
+
+**Clase 2: Promercado consistente (18.3%)**
+
+La segunda clase, aunque minoritaria, presenta el perfil más diferenciado del conjunto. Sus puntajes son sistemáticamente altos tanto en los ítems de trade-off (0.69–0.73) como en los institucionales (0.61–0.70), indicando acuerdo con sacrificar bienes colectivos a cambio de eficiencia económica y preferencia por la provisión privada o mixta en todos los dominios de bienestar.
+
+Sustantivamente, esta clase expresa una orientación promercado coherente que no se limita a un dominio específico ni a un tipo de trade-off particular. Sus miembros no solo aceptan los costos distributivos del crecimiento, sino que además prefieren que sean los privados —o un esquema de cobertura diferenciada— quienes provean los servicios de bienestar. A diferencia de lo que podría esperarse, esta no es la clase de mayor capital socioeconómico: su perfil demográfico se caracteriza por educación e ingresos medios-bajos, identificación ideológica de derecha marcada, y predominio masculino. Esto sugiere que su orientación promercado está más anclada en identificación política que en posición de clase objetiva.
+
+**Clase 3: Mixto (35.4%)**
+
+La tercera clase ocupa una posición intermedia pero con una lógica propia que va más allá de la mera ambigüedad. En los ítems de trade-off sus puntajes son moderados (0.41–0.44), indicando una posición cautelosa pero no de rechazo categórico. En los ítems institucionales, en cambio, la señal es mucho más nítida: los puntajes se concentran alrededor de 0.40–0.47, lo que —revisando las probabilidades condicionales directamente— refleja una preferencia robusta y consistente por la opción mixta (Estado para quienes no pueden pagar, privados para quienes sí pueden), no una división interna entre los extremos.
+
+Sustantivamente, esta clase no representa indiferencia ni falta de posición. Sus miembros expresan una preferencia genuina por modelos de provisión compartida entre Estado y mercado, lo que constituye una posición normativa propia y distinta tanto del estatismo de la Clase 1 como del promercado de la Clase 2. Es además la clase con mayor capital socioeconómico (mayor ingreso y escolaridad) y con mayor proporción de mujeres, lo que sugiere que la posición "mixta" no es una posición residual, sino un perfil actitudinal con base social específica.
+
+**Interpretación general**
+
+En conjunto, la solución de tres clases sugiere que las actitudes hacia el Estado y el mercado en bienestar son mejor comprendidas como multidimensionales e internamente heterogéneas. El contraste principal no es entre quienes apoyan al Estado y quienes no lo hacen, sino entre distintas formas de combinar la disposición a aceptar trade-offs de mercado con preferencias sobre modelos institucionales de provisión. Dicho de otro modo, las clases varían en dos ejes centrales: primero, cuánto espacio normativo le conceden al mercado como mecanismo de asignación; y segundo, si ese espacio aplica de forma homogénea a todos los dominios de política o se concentra en algunos.
+
+Este marco permite clarificar la estructura más amplia de los resultados. La Clase 1 rechaza el mercado tanto en los trade-offs como en la provisión, expresando una visión universalista y estatista de la protección social. La Clase 2 acepta el mercado en ambas dimensiones, combinando tolerancia a los costos distributivos con preferencia por la provisión diferenciada según capacidad de pago. La Clase 3 se distingue de ambas por su preferencia por modelos mixtos en la provisión institucional, acompañada de una posición cautelosa —pero no de rechazo— frente a los trade-offs. En conjunto, los resultados muestran que el apoyo al Estado no implica necesariamente el rechazo al mercado en todos los dominios, y que la preferencia por modelos mixtos constituye una posición actitudinal sustantiva con identidad propia. Esta es precisamente la complejidad que un enfoque centrado en personas, como el LCA, permite recuperar.
+
+
+## Caracterización de las clases según variables externas
+
+Una vez estimada la solución de tres clases, se examinó su relación con un conjunto de variables sociodemográficas, políticas y actitudinales no incluidas en el modelo de medición. Dado el diseño muestral con calibración, todos los cruces se estimaron de forma ponderada: las variables categóricas mediante tablas de contingencia con test de Rao-Scott, y las variables continuas mediante comparación de medias con test de Wald omnibus. Es importante señalar que estas asociaciones son de carácter descriptivo: la pertenencia de clase se asignó por probabilidad posterior modal, y aunque la entropía del modelo es alta (0.887), la clasificación no está libre de error, por lo que la fuerza de las asociaciones debe interpretarse con cautela.
+
+
+| Bloque | Variable | p-valor | Patrón principal |
+|---|---|---|---|
+| Sociodemográfico | Ingreso | 0.004 | Estatista ↓ con ingreso; Mixto ↑ con ingreso |
+| Sociodemográfico | Educación | 0.0002 | Promercado = menor escolaridad; Mixto = mayor |
+| Sociodemográfico | Sexo | 0.0008 | Promercado más masculino (62%); Mixto más femenino (59%) |
+| Sociodemográfico | Edad | 0.176 | Sin diferencias |
+| Sociodemográfico | Ideología | \<0.0001 | Promercado claramente de derecha (50.5%); Estatista disperso |
+| Político | Evaluación gobierno (Kast) | \<0.0001 | Promercado favorable (41% pos.); Estatista muy crítico (53% neg.) |
+| Justicia | Injusticia pago educación | \<0.0001 | Promercado ve menos injusto; Estatista lo ve muy injusto |
+| Justicia | Injusticia pago salud | \<0.0001 | Mismo patrón que educación |
+| Fiscal | Prefiere menos impuestos | \<0.0001 | Promercado más de acuerdo |
+| Fiscal | Justo que ricos paguen más | \<0.0001 | Estatista y Mixto altos y similares; Promercado bajo |
+| Fiscal | Problema es mal gasto | 0.004 | Señal débil; las tres clases de acuerdo |
+| Fiscal | Bajar impuestos genera empleo | \<0.0001 | Promercado más de acuerdo (trickle-down) |
+| Redistribución | Índice pref. redistributiva | \<0.0001 | Gradiente limpio: Estatista > Mixto > Promercado |
+| Economía hogar | Llegan a fin de mes | 0.144 | Sin diferencias |
+| Economía hogar | Afectados por alza precios | 0.0004 | Estatista más afectado; Promercado menos |
+| Economía hogar | Situación vs. 6 meses atrás | 0.0009 | Promercado percibe mejoría |
+| Economía hogar | Expectativa próximos 6 meses | 0.040 | Promercado más optimista |
+
+### Perfil sociodemográfico
+
+Las clases se diferencian significativamente en ingreso, educación, sexo e ideología, pero no en edad. El patrón socioeconómico es contraintuitivo respecto a lo que sugieren sus etiquetas actitudinales. La clase **Mixto** concentra el mayor capital socioeconómico: su proporción crece de forma monótona con el quintil de ingreso (16.7% en Q1 a 26.5% en Q5) y registra el mayor nivel educacional (28.1% con educación universitaria o más). La clase **Estatista**, en cambio, decrece con el ingreso (23.9% en Q1 a 14.5% en Q5), concentrándose en los segmentos de menores recursos. La clase **Promercado** no corresponde al perfil acomodado que su nombre podría sugerir: presenta la menor escolaridad de las tres (76.5% en el tramo básica-media) e ingresos medios-bajos, lo que indica que su orientación promercado no se sustenta en una posición de clase aventajada.
+
+El sexo introduce una diferencia marcada: la clase Promercado es predominantemente masculina (62% hombres), mientras que la clase Mixto se inclina hacia las mujeres (58.8%). La clase Estatista está equilibrada por sexo. La edad, en contraste, no discrimina entre las clases (p=0.176), descartando que los perfiles actitudinales respondan a un efecto generacional.
+
+### Alineamiento ideológico y político
+
+La ideología muestra una de las asociaciones más fuertes, aunque con un patrón asimétrico revelador. La clase Promercado tiene un perfil ideológico nítido y coherente con su orientación: la mitad de sus miembros se identifica con la derecha (50.5%) y solo un 8.3% con la izquierda. La clase Estatista, en cambio, no constituye su imagen especular: su distribución ideológica es dispersa (24.2% izquierda, 28.8% derecha, 30.8% ninguna), con la derecha como categoría modal incluso dentro de ella. Esto indica que las preferencias estatistas en provisión de servicios concretos no se alinean linealmente con la autoubicación ideológica declarada, y que existe un contingente de personas de derecha con preferencias estatistas en materia de bienestar.
+
+Este patrón se reproduce en la evaluación del gobierno de Kast. La clase Promercado es la única con balance favorable (41.2% positiva frente a 27.4% negativa), mientras que la clase Estatista es la más crítica (53% negativa). La clase Mixto se inclina también hacia la crítica, aunque de forma menos pronunciada. La coherencia entre la identificación de derecha de la clase Promercado y su evaluación positiva del gobierno sugiere que esta clase articula una orientación política consistente, no meramente actitudinal.
+
+### Actitudes hacia la justicia, los impuestos y la redistribución
+
+Las variables actitudinales confirman y refinan la interpretación sustantiva de las clases. En la percepción de injusticia del acceso pagado a servicios —el bloque con las diferencias más grandes de todo el análisis— la clase Promercado considera significativamente menos injusto que la calidad de la salud o la educación dependa de la capacidad de pago (medias cercanas al punto neutro, 2.9-3.1), mientras que la clase Estatista lo evalúa como claramente injusto (medias 1.8-2.0). La clase Mixto se ubica cerca de la posición estatista, aunque algo más moderada.
+
+En materia fiscal, el patrón es consistente: la clase Promercado es la más favorable a pagar menos impuestos a costa de los servicios públicos y la que más adhiere a la lógica del *trickle-down* (bajar impuestos a las empresas genera empleo). Un matiz relevante aparece en el ítem sobre impuestos progresivos a los más ricos, donde las clases Estatista y Mixto se comportan de manera casi idéntica y elevada (3.92 y 3.83), separándose conjuntamente de la clase Promercado (3.25); esto sugiere que la preferencia por la progresividad tributaria une a estatistas y mixtos, diferenciándolos de la posición promercado. El único ítem fiscal que no discrimina bien entre clases es la atribución del problema al mal gasto estatal (p=0.004, señal débil), respecto al cual las tres clases coinciden en grado similar, lo que indica que la desconfianza hacia la eficiencia del gasto público es transversal.
+
+El índice de preferencias redistributivas ofrece el gradiente más limpio de todo el análisis, ordenando las clases exactamente como cabría esperar por su orientación: Estatista (5.30) > Mixto (4.77) > Promercado (4.51). Este resultado valida externamente la solución de clases, al mostrar que la tipología derivada de actitudes Estado-mercado se proyecta de forma coherente sobre un dominio actitudinal relacionado pero distinto.
+
+### Situación económica del hogar
+
+La situación económica objetiva del hogar no diferencia a las clases: no hay diferencias significativas en cómo llegan a fin de mes (p=0.144). Sin embargo, sí emergen diferencias en las dimensiones subjetivas y prospectivas. La clase Estatista reporta haberse visto más afectada por el alza de precios, mientras que la clase Promercado percibe una mejoría reciente en su situación (situación vs. seis meses atrás) y mayor optimismo a futuro. Dado que esta diferencia en percepción no se corresponde con una diferencia en la situación material actual, y que coincide con la evaluación positiva del gobierno por parte de la clase Promercado, una lectura plausible —aunque hipotética— es que la percepción económica de esta clase esté parcialmente mediada por afinidad política con el gobierno en curso, un patrón documentado en la literatura sobre razonamiento motivado partidista.
+
+### Síntesis
+
+En conjunto, la caracterización externa sugiere que las tres clases no son simplemente posiciones distintas sobre un mismo continuo, sino configuraciones con bases sociales y políticas diferenciadas. La clase Mixto emerge como el perfil de mayor capital socioeconómico (más ingreso y educación, más femenina), con una posición redistributiva intermedia pero cercana a la estatista en materia tributaria. La clase Promercado, pese a su nombre, no es la más aventajada en términos materiales, sino la de menor escolaridad e ingresos medios-bajos, articulada en torno a una fuerte identidad ideológica de derecha y una evaluación favorable del gobierno. La clase Estatista, la más numerosa, concentra los segmentos de menores recursos pero es ideológicamente heterogénea, lo que indica que el apoyo a un rol estatal en el bienestar trasciende las divisiones ideológicas tradicionales en Chile.
+
+# Material Suplementario
+
+## Análisis factorial exploratorio
+
+```{r}
+#| label: pre-efa
+#| results: hold
+
+KMO(db_efa)
+
+cortest.bartlett(db_efa)
+
+set.seed(231018) # Resultado reproducible
+
+fa.parallel(db_efa, fa = "fa", 
+            fm = "ml", n.iter = 100)
+
+```
+
+```{r}
+#| label: efa
+
+print(efa_final)
+```
