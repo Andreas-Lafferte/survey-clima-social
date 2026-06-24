@@ -28,4 +28,4 @@ In the web page it is possible to see/download the paper in html and pdf formats
 
 ## Files:
 
-- [Latent Class Analysis]()
+- [Latent Class Analysis]( https://andreas-lafferte.github.io/survey-clima-social/processing/prod_analysis.html)
