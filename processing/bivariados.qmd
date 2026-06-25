@@ -384,7 +384,9 @@ plot_bivariado <- function(design, df_resumen, var_col, target,
       )
   } else tibble()
 
-  y_max <- max(c(d$ci_upp, pw$y_bar), na.rm = TRUE) + 8
+  # holgura por si las barras/IC/brackets quedan cerca del 100%; el eje
+  # (breaks) se mantiene fijo en 0-100 aunque el panel se extienda más arriba
+  y_max <- max(c(d$ci_upp, pw$y_bar, 100), na.rm = TRUE) + 8
 
   # 4. Plot base
   p <- ggplot(d, aes(x = categoria, y = prop, fill = categoria)) +
@@ -397,6 +399,7 @@ plot_bivariado <- function(design, df_resumen, var_col, target,
                labeller = label_wrap_gen(width = 35)) +
     scale_fill_manual(values = rep(paleta, length.out = nlevels(d$categoria))) +
     scale_y_continuous(limits = c(0, y_max),
+                       breaks = seq(0, 100, by = 20),
                        labels = scales::percent_format(scale = 1)) +
     labs(
       title    = titulo,
