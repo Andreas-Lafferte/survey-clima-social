@@ -1,0 +1,1185 @@
+---
+title: "Resultados Bivariados | Encuesta ICSOH-UDP"
+author:
+  - name: Andreas Laffert
+    corresponding: true
+    orcid: 0000-0002-9008-2454
+    email: andreas.laffert@ug.uchile.cl 
+    affiliations:
+      - ref: 1  
+affiliations: 
+  - id: 1
+    name: Observatorio de Desigualdades, UDP
+date: today
+lang: es
+fontsize: 12pt
+format:
+  html:
+    code-fold: false
+    toc: false
+    theme:
+      - cosmo
+      - edumer_html.scss
+    code-link: true
+    title-block-banner: true
+    grid:
+      body-width: 1400px
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: set
+#| echo: false
+#| message: false
+#| warning: false
+
+library(knitr)
+
+knitr::opts_chunk$set(echo=FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      cache = FALSE,
+                      fig.width = 11,
+                      fig.height = 7,
+                      out.width = '100%',
+                      fig.pos= "H")
+options(scipen=999)
+options(kableExtra.auto_format = FALSE)
+options(knitr.kable.NA = '')
+options(knitr.graphics.error = FALSE)
+table_format = if (knitr::is_html_output()) {
+   #conditional instructions for kable
+   "html" #if html set "html" in format
+ } else if (knitr::is_latex_output()) {
+   "latex"#if latex set "latex" in format
+ }
+```
+
+```{r}
+#| label: source
+#| echo: false
+#| results: false
+#| message: false
+#| warning: false
+#| include: false
+
+
+library(here)
+source(file = here("processing/lca_junio.R"))
+
+library(ggdist)
+
+set_theme(ggdist::theme_ggdist())
+```
+
+
+```{r}
+#| echo: false
+#| include: false
+
+faltantes <- db |> select(idp44l384,
+                          idp44l385,
+                          idp44l386,
+                          idp44l387,
+                          idp44l388,
+                          idp44l389,
+                          idp44l390,
+                          idp37,
+                          idp28l307, 
+                          idp28l308, 
+                          idp28l309,
+                          idp28l310, 
+                          idp28l311,
+                          idp30l317, 
+                          idp30l318, 
+                          idp30l319, 
+                          idp30l320, 
+                          idp30l321,
+                          idp46l393, 
+                          idp46l394,
+                          idp46l395, 
+                          idp46l396, 
+                          idp46l397,
+                          idp46l398, 
+                          idp46l399,
+                          id)
+
+db_biv <- left_join(db_proc, faltantes, by = "id")
+library(srvyr)
+
+
+db_biv <- db_biv |> 
+  mutate(idp24_r = case_when(idp24 < 3 ~ "Mucho mejor + algo mejor",
+                             idp24 == 3 ~ "Más o menos igual",
+                             idp24 > 3 ~ "Mucho peor + algo peor",
+                             TRUE ~ NA_character_))
+
+frq(db_biv$idp24)
+frq(db_biv$idp24_r)
+
+db_biv <- db_biv |> 
+  mutate(
+    across(.cols = starts_with("idp28l"),
+           .fns = ~ if_else(. >= 4, "Muy de acuerdo + acuerdo", "Desacuerdo + indefinido"))
+  )
+
+db_biv <- db_biv |> 
+  mutate(
+    across(.cols = starts_with("idp30l"),
+           .fns = ~ if_else(. >= 4, "Muy de acuerdo + acuerdo", "Desacuerdo + indefinido"))
+  )
+
+
+db_pond <- db_biv %>% 
+  as_survey_design(ids = 1, weights = ponderador)
+
+```
+
+```{r}
+#| label: fun-prop-ci
+#| echo: false
+#| include: false
+
+
+# --- Función genérica: cruce ponderado var_fila x var_col, con test de diferencias ---
+# var_fila : variable de agrupación (ej. "sexo", "quintil_ingreso")
+# var_col  : variable de interés. Si es factor/character/haven_labelled (variables idp* sin
+#            recodificar, que llegan numéricas con etiquetas desde haven::read_sav) ->
+#            proporciones DENTRO de cada nivel de var_fila (suman 100% por fila) + test
+#            Chi-cuadrado de Rao-Scott. Si es numérica "de verdad" (sin etiquetas) -> medias
+#            por grupo + t-test (2 grupos) o ANOVA/F vía svyglm (3+ grupos).
+# Importante: el tipo se decide por la CLASE de var_col, no por cuántos valores distintos
+# tiene. Un idp* nominal de 3 niveles guardado como <numeric> con etiquetas SPSS (caso de
+# idp42l375) cae en la rama categórica gracias a haven::as_factor(); si esa variable ya fue
+# recodificada con sjlabelled::remove_all_labels() o as.numeric(), perderá las etiquetas y
+# se tratará como continua, así que conviene aplicar esta función ANTES de limpiar etiquetas.
+# IC de proporciones vía transformación logit (acotado entre 0 y 100). Nota: na.rm no
+# tiene efecto en survey_mean() para proporciones agrupadas, por eso se filtran los NA
+# antes del group_by. El test queda además disponible completo en attr(resultado, "test").
+prop_ci_bivariada <- function(design, var_fila, var_col, digits = 1, label_fila = var_fila) {
+
+  d <- design %>%
+    filter(!is.na(.data[[var_fila]]), !is.na(.data[[var_col]])) %>%
+    mutate(!!var_fila := haven::as_factor(.data[[var_fila]]))
+
+  col_vec       <- d$variables[[var_col]]
+  es_categorica <- is.factor(col_vec) || is.character(col_vec) || inherits(col_vec, "haven_labelled")
+  n_grupos      <- nlevels(droplevels(as.factor(d$variables[[var_fila]])))
+
+  if (es_categorica) {
+
+    d <- d %>% mutate(!!var_col := haven::as_factor(.data[[var_col]]))
+
+    tabla <- d %>%
+      group_by(.data[[var_fila]], .data[[var_col]]) %>%
+      summarise(
+        n    = unweighted(n()),
+        prop = survey_mean(vartype = "ci", proportion = TRUE),
+        .groups = "drop_last"
+      ) %>%
+      ungroup() %>%
+      transmute(
+        variable  = label_fila,
+        categoria = as.character(.data[[var_fila]]),
+        !!var_col := .data[[var_col]],
+        n,
+        prop   = round(prop * 100, digits),
+        ci_low = round(prop_low * 100, digits),
+        ci_upp = round(prop_upp * 100, digits)
+      )
+
+    test    <- survey::svychisq(reformulate(c(var_fila, var_col)), design = d, statistic = "F")
+    metodo  <- "Chi-cuadrado de Rao-Scott (F)"
+    p_valor <- test$p.value
+
+  } else {
+
+    tabla <- d %>%
+      group_by(.data[[var_fila]]) %>%
+      summarise(
+        n     = unweighted(n()),
+        media = survey_mean(.data[[var_col]], vartype = "ci")
+      ) %>%
+      ungroup() %>%
+      transmute(
+        variable  = label_fila,
+        categoria = as.character(.data[[var_fila]]),
+        n,
+        media  = round(media, digits),
+        ci_low = round(media_low, digits),
+        ci_upp = round(media_upp, digits)
+      )
+
+    if (n_grupos == 2) {
+      test    <- survey::svyttest(reformulate(var_fila, response = var_col), design = d)
+      metodo  <- "t de Student (diseño complejo)"
+      p_valor <- test$p.value
+    } else {
+      modelo  <- survey::svyglm(reformulate(var_fila, response = var_col), design = d)
+      test    <- survey::regTermTest(modelo, reformulate(var_fila))
+      metodo  <- "ANOVA (F omnibus vía svyglm)"
+      p_valor <- test$p
+    }
+  }
+
+  tabla <- tabla %>%
+    mutate(
+      metodo_test = metodo,
+      p_valor = round(as.numeric(p_valor), 4),
+      sig = case_when(
+        p_valor < 0.001 ~ "***",
+        p_valor < 0.01  ~ "**",
+        p_valor < 0.05  ~ "*",
+        TRUE ~ ""
+      )
+    )
+
+  attr(tabla, "test") <- test
+  tabla
+}
+
+# Ejemplo 1: distribución por sexo dentro de idp42l375 (categórica -> Rao-Scott)
+prop_ci_bivariada(db_pond, "sexo", "idp42l375", label_fila = "Sexo")
+
+# Ejemplo 2: mismo cruce, cambiando sexo por quintil de ingreso (3+ grupos -> sigue siendo Rao-Scott)
+prop_ci_bivariada(db_pond, "quintil_ingreso", "idp42l375", label_fila = "Quintil de ingreso")
+
+# Ejemplo 3: var_col numérica con 2 grupos -> t de Student
+prop_ci_bivariada(db_pond, "sexo", "idp46l393", label_fila = "Sexo")
+
+# Ejemplo 4: var_col numérica con 3+ grupos -> ANOVA (F)
+prop_ci_bivariada(db_pond, "quintil_ingreso", "idp46l393", label_fila = "Quintil de ingreso")
+
+# Para apilar varias variables de agrupación contra la misma var_col:
+purrr::map2_dfr(
+  c("sexo", "quintil_ingreso"),
+  c("Sexo", "Quintil de ingreso"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l375", label_fila = .y)
+)
+
+```
+
+```{r}
+#| label: fun-pairwise-plot
+#| echo: false
+#| include: false
+
+# --- Comparaciones pareadas PONDERADAS para la proporción graficada ----------
+# Para el outcome que se grafica (var_col == target, recodificado a binario
+# "destacada vs. resto"), testea QUÉ pares de categorías de var_fila difieren
+# entre sí, usando el MISMO diseño complejo: svychisq Rao-Scott (F) sobre cada
+# subtabla 2x2. Devuelve p crudo y p ajustado (Holm por defecto) DENTRO de la
+# familia de comparaciones pareadas de esa variable.
+# Nota metodológica: este es el test correcto para la cantidad graficada
+# (la proporción de la categoría destacada). Difiere a propósito del p ómnibus
+# de la tabla (prop_ci_bivariada), que evalúa la distribución completa de
+# var_col en lugar de una sola categoría.
+pairwise_svy <- function(design, var_fila, var_col, target, p_adjust = "holm") {
+
+  d <- design %>%
+    filter(!is.na(.data[[var_fila]]), !is.na(.data[[var_col]])) %>%
+    mutate(
+      grupo_pw = droplevels(haven::as_factor(.data[[var_fila]])),
+      bin_pw   = factor(if_else(haven::as_factor(.data[[var_col]]) == target,
+                                "destacada", "resto"))
+    )
+
+  grupos <- levels(d$variables$grupo_pw)
+  if (length(grupos) < 2) return(tibble())
+
+  pares <- combn(grupos, 2, simplify = FALSE)
+
+  out <- purrr::map_dfr(pares, function(par) {
+    sub <- d %>%
+      filter(grupo_pw %in% par) %>%
+      mutate(grupo_pw = droplevels(grupo_pw))
+    p <- tryCatch(
+      as.numeric(
+        survey::svychisq(~ bin_pw + grupo_pw, design = sub, statistic = "F")$p.value
+      ),
+      error = function(e) NA_real_
+    )
+    tibble(g1 = par[1], g2 = par[2], p_raw = p)
+  })
+
+  out %>%
+    mutate(
+      p_adj = p.adjust(p_raw, method = p_adjust),
+      stars = case_when(
+        is.na(p_adj)  ~ "",
+        p_adj < 0.001 ~ "***",
+        p_adj < 0.01  ~ "**",
+        p_adj < 0.05  ~ "*",
+        TRUE          ~ ""
+      )
+    )
+}
+
+# --- Gráfico de barras ponderado + barras de significancia pareada -----------
+# design     : diseño svy (db_pond)
+# df_resumen : tabla ya calculada con prop_ci_bivariada (ej. pension)
+# var_col    : nombre de la var. de interés (ej. "idp42l375")
+# target     : categoría destacada a graficar (ej. estado)
+# vars/labels: mismas variables de agrupación y etiquetas usadas al construir df_resumen
+plot_bivariado <- function(design, df_resumen, var_col, target,
+                           vars, labels, titulo, subtitulo = NULL,
+                           p_adjust = "holm",
+                           paleta = c("#bd3106", "#89a6bb", "#5b7314", "#d9700e", "#454b87", "#e9a00e", "#6E6A62")) {
+
+  # 1. Barras: proporciones e IC ya ponderados (vienen de prop_ci_bivariada)
+  d <- df_resumen %>%
+    filter(.data[[var_col]] == target) %>%
+    mutate(categoria = factor(categoria, levels = unique(categoria)))
+
+  # posición x dentro de cada facet (variable), respetando el orden de aparición
+  pos <- d %>%
+    group_by(variable) %>%
+    mutate(x_pos = match(as.character(categoria),
+                         unique(as.character(categoria)))) %>%
+    ungroup() %>%
+    distinct(variable, categoria, x_pos) %>%
+    mutate(categoria = as.character(categoria))
+
+  # 2. Comparaciones pareadas ponderadas por variable
+  pw <- purrr::map2_dfr(vars, labels, function(v, lab) {
+    res <- pairwise_svy(design, v, var_col, target, p_adjust)
+    if (nrow(res) == 0) return(tibble())
+    mutate(res, variable = lab)
+  })
+
+  if (nrow(pw) > 0) {
+    pw <- pw %>%
+      filter(stars != "") %>%
+      left_join(pos, by = c("variable", "g1" = "categoria")) %>%
+      rename(x1 = x_pos) %>%
+      left_join(pos, by = c("variable", "g2" = "categoria")) %>%
+      rename(x2 = x_pos) %>%
+      mutate(xmin = pmin(x1, x2), xmax = pmax(x1, x2)) %>%
+      left_join(
+        d %>% group_by(variable) %>% summarise(y0 = max(ci_upp), .groups = "drop"),
+        by = "variable"
+      ) %>%
+      group_by(variable) %>%
+      arrange(xmax - xmin, xmin, .by_group = TRUE) %>%   # apila: pares cortos abajo
+      mutate(
+        nivel = row_number(),
+        y_bar = y0 + 4 + (nivel - 1) * 6,
+        x_mid = (xmin + xmax) / 2
+      ) %>%
+      ungroup()
+  }
+
+  # 3. Segmentos de cada barra de significancia (┌──┐)
+  tick <- 1.2
+  segs <- if (nrow(pw) > 0) {
+    pw %>%
+      rowwise() %>%
+      reframe(
+        variable = variable,
+        x    = c(xmin,  xmin,         xmax),
+        xend = c(xmax,  xmin,         xmax),
+        y    = c(y_bar, y_bar - tick, y_bar - tick),
+        yend = c(y_bar, y_bar,        y_bar)
+      )
+  } else tibble()
+
+  y_max <- max(c(d$ci_upp, pw$y_bar), na.rm = TRUE) + 8
+
+  # 4. Plot base
+  p <- ggplot(d, aes(x = categoria, y = prop, fill = categoria)) +
+    geom_col(width = 0.6) +
+    geom_errorbar(aes(ymin = ci_low, ymax = ci_upp),
+                  width = 0.2, linewidth = 0.6, color = "black") +
+    geom_text(aes(y = ci_upp, label = paste0(round(prop, 1), "%")),
+              vjust = -0.5, size = 3.2, fontface = "bold") +
+    facet_wrap(~ variable, scales = "free_x",
+               labeller = label_wrap_gen(width = 35)) +
+    scale_fill_manual(values = rep(paleta, length.out = nlevels(d$categoria))) +
+    scale_y_continuous(limits = c(0, y_max),
+                       labels = scales::percent_format(scale = 1)) +
+    labs(
+      title    = titulo,
+      subtitle = subtitulo,
+      x = NULL, y = "Proporción (%)",
+      caption  = paste0("Fuente: Elaboración propia en base a Encuesta ISCOH-UDP Clima Social Junio 2026 (N = 1.500)", ".\n",
+        "IC 95%. Barras de significancia = comparaciones ",
+        "pareadas ponderadas, ",
+        "ajuste ", p_adjust, ".\n",
+        "* p<0,05   ** p<0,01   *** p<0,001."
+      )
+    ) +
+    theme(
+      legend.position    = "none",
+      strip.text         = element_text(face = "bold", size = 10),
+      axis.text.x        = element_text(angle = 25, hjust = 1, size = 9),
+      panel.grid.major.x = element_blank(),
+      plot.title         = element_text(face = "bold", size = 13),
+      plot.caption       = element_text(size = 9)
+    )
+
+  # 5. Añadir brackets solo si hay pares significativos
+  if (nrow(pw) > 0) {
+    p <- p +
+      geom_segment(data = segs,
+                   aes(x = x, xend = xend, y = y, yend = yend),
+                   inherit.aes = FALSE, linewidth = 0.5, color = "gray25") +
+      geom_text(data = pw,
+                aes(x = x_mid, y = y_bar, label = stars),
+                inherit.aes = FALSE, vjust = -0.3, size = 5,
+                color = "black", fontface = "bold")
+  }
+
+  p
+}
+```
+
+
+```{r}
+#| label: fun-pa
+#| echo: false
+#| include: false
+
+# --- Comparaciones pareadas PONDERADAS para MEDIAS ---------------------------
+# Outcome numérico (var_col continua). Testea qué pares de categorías de var_fila
+# difieren en su MEDIA, con el mismo diseño complejo: svyttest por cada par.
+# Ajuste Holm dentro de la familia de pares de cada variable.
+pairwise_svy_medias <- function(design, var_fila, var_col, p_adjust = "holm") {
+
+  d <- design %>%
+    filter(!is.na(.data[[var_fila]]), !is.na(.data[[var_col]])) %>%
+    mutate(grupo_pw = droplevels(haven::as_factor(.data[[var_fila]])))
+
+  grupos <- levels(d$variables$grupo_pw)
+  if (length(grupos) < 2) return(tibble())
+
+  pares <- combn(grupos, 2, simplify = FALSE)
+
+  out <- purrr::map_dfr(pares, function(par) {
+    sub <- d %>%
+      filter(grupo_pw %in% par) %>%
+      mutate(grupo_pw = droplevels(grupo_pw))
+    p <- tryCatch(
+      as.numeric(
+        survey::svyttest(reformulate("grupo_pw", response = var_col), design = sub)$p.value
+      ),
+      error = function(e) NA_real_
+    )
+    tibble(g1 = par[1], g2 = par[2], p_raw = p)
+  })
+
+  out %>%
+    mutate(
+      p_adj = p.adjust(p_raw, method = p_adjust),
+      stars = case_when(
+        is.na(p_adj)  ~ "",
+        p_adj < 0.001 ~ "***",
+        p_adj < 0.01  ~ "**",
+        p_adj < 0.05  ~ "*",
+        TRUE          ~ ""
+      )
+    )
+}
+
+# --- Gráfico de barras de MEDIAS + barras de significancia pareada -----------
+# design     : diseño svy (db_pond)
+# df_resumen : tabla con prop_ci_bivariada (rama de medias, ej. salud_f)
+# var_col    : nombre de la var. numérica de interés (ej. "idp46l393")
+# vars/labels: mismas variables de agrupación y etiquetas usadas al construir df_resumen
+# Offsets de los brackets escalados al rango de los datos (sirve para Likert 1-4, 1-7, etc.)
+plot_medias <- function(design, df_resumen, var_col,
+                        vars, labels, titulo, subtitulo = NULL,
+                        y_lab = "Media", p_adjust = "holm",
+                        paleta = c("#bd3106", "#89a6bb", "#5b7314", "#d9700e", "#454b87", "#e9a00e", "#6E6A62")) {
+
+  # 1. Barras: medias e IC ya ponderados
+  d <- df_resumen %>%
+    mutate(categoria = factor(categoria, levels = unique(categoria)))
+
+  pos <- d %>%
+    group_by(variable) %>%
+    mutate(x_pos = match(as.character(categoria),
+                         unique(as.character(categoria)))) %>%
+    ungroup() %>%
+    distinct(variable, categoria, x_pos) %>%
+    mutate(categoria = as.character(categoria))
+
+  # 2. Comparaciones pareadas ponderadas por variable
+  pw <- purrr::map2_dfr(vars, labels, function(v, lab) {
+    res <- pairwise_svy_medias(design, v, var_col, p_adjust)
+    if (nrow(res) == 0) return(tibble())
+    mutate(res, variable = lab)
+  })
+
+  # offsets escalados al rango visible
+  span <- max(d$ci_upp, na.rm = TRUE)
+  paso <- span * 0.06
+  tick <- span * 0.012
+
+  if (nrow(pw) > 0) {
+    pw <- pw %>%
+      filter(stars != "") %>%
+      left_join(pos, by = c("variable", "g1" = "categoria")) %>%
+      rename(x1 = x_pos) %>%
+      left_join(pos, by = c("variable", "g2" = "categoria")) %>%
+      rename(x2 = x_pos) %>%
+      mutate(xmin = pmin(x1, x2), xmax = pmax(x1, x2)) %>%
+      left_join(
+        d %>% group_by(variable) %>% summarise(y0 = max(ci_upp), .groups = "drop"),
+        by = "variable"
+      ) %>%
+      group_by(variable) %>%
+      arrange(xmax - xmin, xmin, .by_group = TRUE) %>%
+      mutate(
+        nivel = row_number(),
+        y_bar = y0 + paso + (nivel - 1) * paso,
+        x_mid = (xmin + xmax) / 2
+      ) %>%
+      ungroup()
+  }
+
+  segs <- if (nrow(pw) > 0) {
+    pw %>%
+      rowwise() %>%
+      reframe(
+        variable = variable,
+        x    = c(xmin,  xmin,         xmax),
+        xend = c(xmax,  xmin,         xmax),
+        y    = c(y_bar, y_bar - tick, y_bar - tick),
+        yend = c(y_bar, y_bar,        y_bar)
+      )
+  } else tibble()
+
+  y_max <- max(c(d$ci_upp, pw$y_bar), na.rm = TRUE) + paso * 1.5
+
+  # 3. Plot base
+  p <- ggplot(d, aes(x = categoria, y = media, fill = categoria)) +
+    geom_col(width = 0.6) +
+    geom_errorbar(aes(ymin = ci_low, ymax = ci_upp),
+                  width = 0.2, linewidth = 0.6, color = "black") +
+    geom_text(aes(y = ci_upp, label = format(round(media, 1), nsmall = 1)),
+              vjust = -0.5, size = 3.2, fontface = "bold") +
+    facet_wrap(~ variable, scales = "free_x",
+               labeller = label_wrap_gen(width = 35)) +
+    scale_fill_manual(values = rep(paleta, length.out = nlevels(d$categoria))) +
+    scale_y_continuous(limits = c(0, y_max)) +
+    labs(
+      title    = titulo,
+      subtitle = subtitulo,
+      x = NULL, y = y_lab,
+     caption  = paste0("Fuente: Elaboración propia en base a Encuesta ISCOH-UDP Clima Social Junio 2026 (N = 1.500)", ".\n",
+        "IC 95%. Barras de significancia = comparaciones ",
+        "pareadas ponderadas, ",
+        "ajuste ", p_adjust, ".\n",
+        "* p<0,05   ** p<0,01   *** p<0,001."
+      )
+    ) +
+    theme(
+      legend.position    = "none",
+      strip.text         = element_text(face = "bold", size = 10),
+      axis.text.x        = element_text(angle = 25, hjust = 1, size = 9),
+      panel.grid.major.x = element_blank(),
+      plot.title         = element_text(face = "bold", size = 13),
+      plot.subtitle      = element_text(size = 10),
+      plot.caption       = element_text(size = 9)
+    )
+
+  if (nrow(pw) > 0) {
+    p <- p +
+      geom_segment(data = segs,
+                   aes(x = x, xend = xend, y = y, yend = yend),
+                   inherit.aes = FALSE, linewidth = 0.5, color = "black") +
+      geom_text(data = pw,
+                aes(x = x_mid, y = y_bar, label = stars),
+                inherit.aes = FALSE, vjust = -0.3, size = 5,
+                color = "black", fontface = "bold")
+  }
+
+  p
+}
+```
+
+# Provisión de servicios en Chile: Eª, Mercado o Mixto
+
+```{r}
+#| include: false
+#| echo: false
+
+pension <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l375", label_fila = .y)
+)
+
+salud <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l376", label_fila = .y)
+)
+
+educ_escolar <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l377", label_fila = .y)
+)
+
+educ_uni <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l378", label_fila = .y)
+)
+
+cuid_nn <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l379", label_fila = .y)
+)
+
+cuid_may <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l380", label_fila = .y)
+)
+
+
+estado <- "El Estado, asegurando servicios gratuitos y de igual calidad para todas las personas"
+mixto <- "Servicios privados para quienes pueden pagarlos, y el Estado cubriendo a quienes no pueden pagarlos"
+mercado <- "Cada persona o familia, contratando servicios privados según su capacidad de pago"
+
+```
+
+
+
+
+```{r}
+#| results: hold
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = pension,
+  var_col    = "idp42l375",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando pensiones"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = salud,
+  var_col    = "idp42l376",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando salud"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_escolar,
+  var_col    = "idp42l377",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando educación escolar"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_uni,
+  var_col    = "idp42l378",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando educación universitaria"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_nn,
+  var_col    = "idp42l379",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando cuidado menores"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_may,
+  var_col    = "idp42l380",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando cuidado mayores"
+)
+
+
+```
+
+
+
+```{r}
+#| results: hold
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = pension,
+  var_col    = "idp42l375",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando pensiones"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = salud,
+  var_col    = "idp42l376",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando salud"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_escolar,
+  var_col    = "idp42l377",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando educación escolar"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_uni,
+  var_col    = "idp42l378",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando educación universitaria"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_nn,
+  var_col    = "idp42l379",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando cuidado menores"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_may,
+  var_col    = "idp42l380",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando cuidado mayores"
+)
+
+
+```
+
+
+```{r}
+#| results: hold
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = pension,
+  var_col    = "idp42l375",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando pensiones"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = salud,
+  var_col    = "idp42l376",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando salud"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_escolar,
+  var_col    = "idp42l377",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando educación escolar"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_uni,
+  var_col    = "idp42l378",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando educación universitaria"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_nn,
+  var_col    = "idp42l379",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando cuidado menores"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_may,
+  var_col    = "idp42l380",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando cuidado mayores"
+)
+
+
+```
+
+
+# Fichas para áreas de gasto público
+
+
+```{r}
+#| include: false
+#| echo: false
+
+frq(db_biv$idp46l393)
+
+salud_f <- purrr::map2_dfr(
+  c("sexo",  "ideologia"),
+  c("Sexo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp46l393", label_fila = .y)
+)
+
+educ_f <- purrr::map2_dfr(
+  c("sexo",  "ideologia"),
+  c("Sexo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp46l394", label_fila = .y)
+)
+ 
+pension_f <- purrr::map2_dfr(
+  c("sexo",  "ideologia"),
+  c("Sexo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp46l395", label_fila = .y)
+)
+
+segu_f <- purrr::map2_dfr(
+  c("sexo",  "ideologia"),
+  c("Sexo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp46l396", label_fila = .y)
+)
+
+vivienda_f <- purrr::map2_dfr(
+  c("sexo",  "ideologia"),
+  c("Sexo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp46l397", label_fila = .y)
+)
+
+fome_f <- purrr::map2_dfr(
+  c("sexo",  "ideologia"),
+  c("Sexo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp46l398", label_fila = .y)
+)
+
+cuidados_f <- purrr::map2_dfr(
+  c("sexo",  "ideologia"),
+  c("Sexo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp46l399", label_fila = .y)
+)
+
+
+```
+
+
+
+```{r}
+#| results: hold
+
+plot_medias(
+  design     = db_pond,
+  df_resumen = salud_f,
+  var_col    = "idp46l393",
+  vars       = c("sexo", "ideologia"),
+  labels     = c("Sexo", "Identificación política"),
+  titulo     = "Prioridad de gasto público: Salud"
+)
+
+plot_medias(
+  design     = db_pond,
+  df_resumen = educ_f,
+  var_col    = "idp46l394",
+  vars       = c("sexo", "ideologia"),
+  labels     = c("Sexo", "Identificación política"),
+  titulo     = "Prioridad de gasto público: Educación"
+)
+
+
+plot_medias(
+  design     = db_pond,
+  df_resumen = pension_f,
+  var_col    = "idp46l395",
+  vars       = c("sexo", "ideologia"),
+  labels     = c("Sexo", "Identificación política"),
+  titulo     = "Prioridad de gasto público: Pensiones"
+)
+
+plot_medias(
+  design     = db_pond,
+  df_resumen = segu_f,
+  var_col    = "idp46l396",
+  vars       = c("sexo", "ideologia"),
+  labels     = c("Sexo", "Identificación política"),
+  titulo     = "Prioridad de gasto público: Seguridad"
+)
+
+plot_medias(
+  design     = db_pond,
+  df_resumen = vivienda_f,
+  var_col    = "idp46l397",
+  vars       = c("sexo", "ideologia"),
+  labels     = c("Sexo", "Identificación política"),
+  titulo     = "Prioridad de gasto público: Vivienda"
+)
+
+plot_medias(
+  design     = db_pond,
+  df_resumen = fome_f,
+  var_col    = "idp46l398",
+  vars       = c("sexo", "ideologia"),
+  labels     = c("Sexo", "Identificación política"),
+  titulo     = "Prioridad de gasto público: Fomento crecimiento"
+)
+
+plot_medias(
+  design     = db_pond,
+  df_resumen = cuidados_f,
+  var_col    = "idp46l399",
+  vars       = c("sexo", "ideologia"),
+  labels     = c("Sexo", "Identificación política"),
+  titulo     = "Prioridad de gasto público: Cuidados"
+)
+
+```
+
+
+# Garantías estatales
+
+
+```{r}
+#| include: false
+#| echo: false
+
+db_biv |> 
+  select(starts_with("idp44l")) |> 
+  frq()
+
+educ_g <- purrr::map2_dfr(
+   c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp44l386", label_fila = .y)
+)
+
+vivienda_g <- purrr::map2_dfr(
+   c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp44l388", label_fila = .y)
+)
+
+internet_g <- purrr::map2_dfr(
+   c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp44l390", label_fila = .y)
+)
+
+
+```
+
+
+```{r}
+#| results: hold
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_g,
+  var_col    = "idp44l386",
+  target     = "Sí",
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Garantía estatal: Educación"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = vivienda_g,
+  var_col    = "idp44l388",
+  target     = "Sí",
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Garantía estatal: Vivienda"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = internet_g,
+  var_col    = "idp44l390",
+  target     = "Sí",
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Garantía estatal: Internet"
+)
+```
+
+
+
+```{r}
+#| include: false
+#| echo: false
+
+purrr::map2_dfr(
+   c("ideologia"),
+  c("Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp24_r", label_fila = .y)
+)
+
+```
+
+
+```{r}
+#| include: false
+#| echo: false
+
+db_biv |> 
+  select(starts_with("idp28l")) |> 
+  frq()
+
+empresas <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l307", label_fila = .y)
+)
+
+ambiente_inversion <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l308", label_fila = .y)
+)
+
+gratuidad_30 <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l309", label_fila = .y)
+)
+
+contri_65 <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l310", label_fila = .y)
+)
+
+inversiones <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l311", label_fila = .y)
+)
+
+empresas <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l307", label_fila = .y)
+)
+```
+
+
+```{r}
+#| include: false
+#| echo: false
+
+db_biv |> 
+  select(starts_with("idp30l")) |> 
+  frq()
+
+benef_empre <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l317", label_fila = .y)
+)
+
+necesarias <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l318", label_fila = .y)
+)
+
+benef_ricos <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l319", label_fila = .y)
+)
+
+solidas <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l320", label_fila = .y)
+)
+
+plan_resp <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l321", label_fila = .y)
+)
+
+```
+
+
+```{r}
+#| include: false
+#| echo: false
+
+frq(db_biv$eval_gobierno)
+frq(db_biv$idp35)
+
+
+ purrr::map2_dfr(
+   c("idp35"),
+  c("Voto"),
+  ~ prop_ci_bivariada(db_pond, .x, "eval_gobierno", label_fila = .y)
+) 
+
+```
+
+```{r}
+#| include: false
+#| echo: false
+
+
+ purrr::map2_dfr(
+   c("eval_gobierno"),
+  c("Evaluación gobierno"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp37", label_fila = .y)
+) 
+
+```

@@ -54,8 +54,11 @@ db <- db |>
 
 # 4. Analysis -----------------------------------------------------------------
 
+db <- rowid_to_column(db, "id")
+
 db_proc <- db |> 
-  dplyr::select(vars_lca, 
+  dplyr::select(id, 
+                vars_lca, 
                 age_group, 
                 resp_gender,
                 cl02state,
@@ -84,7 +87,8 @@ db_proc <- db |>
                 idp58l431,
                 idp58l432,
                 ponderador
-              )
+              ) 
+
 
 # 4.1 Distributions
 
