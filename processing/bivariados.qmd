@@ -656,11 +656,6 @@ cuidados_f <- purrr::map2_dfr(
   ~ prop_ci_bivariada(db_pond, .x, "idp46l399", label_fila = .y)
 )
 
-purrr::map2_dfr(
-  c("sexo",  "ideologia"),
-  c("Sexo", "Identificación política"),
-  ~ pairwise_svy_medias(db_pond, .x, "idp46l399") |> mutate(variable = .y)
-)
 ```
 
 
