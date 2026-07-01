@@ -602,7 +602,264 @@ plot_medias <- function(design, df_resumen, var_col,
 }
 ```
 
+# Provisión de servicios en Chile: Eª, Mercado o Mixto
 
+```{r}
+#| include: false
+#| echo: false
+
+pension <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l375", label_fila = .y)
+)
+
+salud <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l376", label_fila = .y)
+)
+
+educ_escolar <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l377", label_fila = .y)
+)
+
+educ_uni <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l378", label_fila = .y)
+)
+
+cuid_nn <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l379", label_fila = .y)
+)
+
+cuid_may <- purrr::map2_dfr(
+  c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp42l380", label_fila = .y)
+)
+
+
+estado <- "El Estado, asegurando servicios gratuitos y de igual calidad para todas las personas"
+mixto <- "Servicios privados para quienes pueden pagarlos, y el Estado cubriendo a quienes no pueden pagarlos"
+mercado <- "Cada persona o familia, contratando servicios privados según su capacidad de pago"
+
+```
+
+
+
+
+```{r}
+#| results: hold
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = pension,
+  var_col    = "idp42l375",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando pensiones"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = salud,
+  var_col    = "idp42l376",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando salud"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_escolar,
+  var_col    = "idp42l377",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando educación escolar"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_uni,
+  var_col    = "idp42l378",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando educación universitaria"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_nn,
+  var_col    = "idp42l379",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando cuidado menores"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_may,
+  var_col    = "idp42l380",
+  target     = estado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: El Estado asegurando cuidado mayores"
+)
+
+
+```
+
+
+
+```{r}
+#| results: hold
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = pension,
+  var_col    = "idp42l375",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando pensiones"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = salud,
+  var_col    = "idp42l376",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando salud"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_escolar,
+  var_col    = "idp42l377",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando educación escolar"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_uni,
+  var_col    = "idp42l378",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando educación universitaria"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_nn,
+  var_col    = "idp42l379",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando cuidado menores"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_may,
+  var_col    = "idp42l380",
+  target     = mercado,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Cada persona o familia asegurando cuidado mayores"
+)
+
+
+```
+
+
+```{r}
+#| results: hold
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = pension,
+  var_col    = "idp42l375",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando pensiones"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = salud,
+  var_col    = "idp42l376",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando salud"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_escolar,
+  var_col    = "idp42l377",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando educación escolar"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_uni,
+  var_col    = "idp42l378",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando educación universitaria"
+)
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_nn,
+  var_col    = "idp42l379",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando cuidado menores"
+)
+
+
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = cuid_may,
+  var_col    = "idp42l380",
+  target     = mixto,
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Preferencia: Mixto asegurando cuidado mayores"
+)
+
+
+```
 
 
 # Fichas para áreas de gasto público
@@ -656,11 +913,7 @@ cuidados_f <- purrr::map2_dfr(
   ~ prop_ci_bivariada(db_pond, .x, "idp46l399", label_fila = .y)
 )
 
-purrr::map2_dfr(
-  c("sexo",  "ideologia"),
-  c("Sexo", "Identificación política"),
-  ~ pairwise_svy_medias(db_pond, .x, "idp46l399") |> mutate(variable = .y)
-)
+
 ```
 
 
@@ -735,46 +988,201 @@ plot_medias(
 ```
 
 
+# Garantías estatales
+
+
 ```{r}
-#| echo: false
 #| include: false
+#| echo: false
+
+db_biv |> 
+  select(starts_with("idp44l")) |> 
+  frq()
+
+educ_g <- purrr::map2_dfr(
+   c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp44l386", label_fila = .y)
+)
+
+vivienda_g <- purrr::map2_dfr(
+   c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp44l388", label_fila = .y)
+)
+
+internet_g <- purrr::map2_dfr(
+   c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp44l390", label_fila = .y)
+)
 
 
-pares_ideo <- function(var_col, etiqueta) {
-  pairwise_svy_medias(db_pond, "ideologia", var_col, p_adjust = "holm") |>
-    mutate(area = etiqueta) |>
-    select(area, g1, g2, p_raw, p_adj, stars) |>
-    arrange(p_adj)
-}
-
-# Un solo tibble apilado con todas las áreas
-purrr::pmap_dfr(
-  list(
-    c("idp46l393", "idp46l394", "idp46l395",
-      "idp46l396", "idp46l397", "idp46l398", "idp46l399"),
-    c("Salud", "Educación", "Pensiones",
-      "Seguridad", "Vivienda", "Fomento", "Cuidados")
-  ),
-  ~ pares_ideo(..1, ..2)
-) |>
-  print(n = Inf)
 ```
 
 
-**Imagine que usted tiene 10 fichas para repartir entre las siguientes áreas de gasto público en Chile. ¿Cuánto le asignaría a cada una? Puede asignar 0 fichas a las áreas que considere menos prioritarias, pero el total debe sumar exactamente 10**
+```{r}
+#| results: hold
 
 
-- Salud: Es la prioridad Nº1 y la de mayor consenso. No existen diferencias ni entre hombres y mujeres ni entre orientaciones políticas: todos los grupos asignan entre 2,1 y 2,3 fichas (media general 2,2).
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = educ_g,
+  var_col    = "idp44l386",
+  target     = "Sí",
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Garantía estatal: Educación"
+)
 
-- Educación: La izquierda es quien más la prioriza. Quienes se identifican con la izquierda asignan 1,9 fichas en promedio y se diferencian significativamente de quienes se identifican con la derecha (1,6) y de quienes no se identifican con ningún sector (1,6). El centro (1,8) queda en una posición intermedia, sin diferenciarse de forma estadísticamente significativa del resto. No hay diferencias entre hombres y mujeres.
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = vivienda_g,
+  var_col    = "idp44l388",
+  target     = "Sí",
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Garantía estatal: Vivienda"
+)
 
-- Pensiones: Es una prioridad media y transversal. Aunque la prueba global sugiere una diferencia leve entre orientaciones políticas, al comparar los grupos uno a uno ninguna diferencia resulta robusta: las asignaciones van de 1,4 a 1,6 fichas y no se distinguen entre sí. Tampoco hay diferencias entre hombres y mujeres.
+plot_bivariado(
+  design     = db_pond,
+  df_resumen = internet_g,
+  var_col    = "idp44l390",
+  target     = "Sí",
+  vars       = c("sexo", "quintil_ingreso", "educacion_cine", "ideologia"),
+  labels     = c("Sexo", "Quintil de ingreso", "Nivel educativo", "Identificación política"),
+  titulo     = "Garantía estatal: Internet"
+)
+```
 
-- Seguridad: Es el área que más divide políticamente. La brecha más fuerte es entre izquierda (1,4 fichas) y derecha (1,9), la mayor de todas las áreas. Ambos extremos se diferencian además del centro y de quienes no se identifican (ambos en 1,6), que a su vez no se diferencian entre sí. En síntesis: mientras más a la derecha, más prioridad a la seguridad. No hay diferencias entre hombres y mujeres.
 
-- Vivienda: Prioridad baja y bastante pareja. La única diferencia significativa se da entre quienes se identifican con la derecha (1,0 ficha), que asignan menos, y quienes no se identifican con ningún sector (1,2). Izquierda y centro (1,1) quedan en el medio, sin diferenciarse de nadie. No hay diferencias entre hombres y mujeres.
 
-- Fomento del crecimiento: La derecha es quien más lo prioriza (1,2 fichas), diferenciándose significativamente solo de quienes no se identifican con ningún sector (0,8). Las diferencias de la derecha con la izquierda y el centro no alcanzan significancia estadística tras el ajuste.
+```{r}
+#| include: false
+#| echo: false
 
-- Cuidados: Es el área que menos fichas recibe y en la que todos coinciden. No hay diferencias ni por sexo ni por identificación política (media general cercana a 1 ficha).
+purrr::map2_dfr(
+   c("ideologia"),
+  c("Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp24_r", label_fila = .y)
+)
 
+```
+
+
+```{r}
+#| include: false
+#| echo: false
+
+db_biv |> 
+  select(starts_with("idp28l")) |> 
+  frq()
+
+empresas <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l307", label_fila = .y)
+)
+
+ambiente_inversion <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l308", label_fila = .y)
+)
+
+gratuidad_30 <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l309", label_fila = .y)
+)
+
+contri_65 <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l310", label_fila = .y)
+)
+
+inversiones <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l311", label_fila = .y)
+)
+
+empresas <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp28l307", label_fila = .y)
+)
+```
+
+
+```{r}
+#| include: false
+#| echo: false
+
+db_biv |> 
+  select(starts_with("idp30l")) |> 
+  frq()
+
+benef_empre <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l317", label_fila = .y)
+)
+
+necesarias <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l318", label_fila = .y)
+)
+
+benef_ricos <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l319", label_fila = .y)
+)
+
+solidas <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l320", label_fila = .y)
+)
+
+plan_resp <- purrr::map2_dfr(
+   c("sexo","ideologia"),
+  c("Sexo","Identificación política"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp30l321", label_fila = .y)
+)
+
+```
+
+
+```{r}
+#| include: false
+#| echo: false
+
+frq(db_biv$eval_gobierno)
+frq(db_biv$idp35)
+
+
+ purrr::map2_dfr(
+   c("idp35"),
+  c("Voto"),
+  ~ prop_ci_bivariada(db_pond, .x, "eval_gobierno", label_fila = .y)
+) 
+
+```
+
+```{r}
+#| include: false
+#| echo: false
+
+
+ purrr::map2_dfr(
+   c("eval_gobierno"),
+  c("Evaluación gobierno"),
+  ~ prop_ci_bivariada(db_pond, .x, "idp37", label_fila = .y)
+) 
+
+```
