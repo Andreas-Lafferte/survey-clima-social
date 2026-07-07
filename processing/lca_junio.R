@@ -806,3 +806,226 @@ res_idp64 <- tab_continua("idp64", design, "Alza de precios afectó al hogar")
 res_idp65 <- tab_continua("idp65", design, "Situación económica vs. hace 6 meses")
 res_idp66 <- tab_continua("idp66", design, "Expectativa económica próximos 6 meses")
 
+names(db)
+
+db_tall <- db_proc %>%
+  select(id,  sexo, tramo_edad, quintil_ingreso, educacion_cine, ideologia,
+         idp40l367_r, idp40l368_r, idp40l369_r,
+         idp42l375_ord, idp42l376_ord, idp42l377_ord, 
+         idp42l378_ord, idp42l379_ord, idp42l380_ord) 
+
+
+db_tall <- left_join(db_tall, db)
+
+
+# Renombramiento de variables de `db` según codebook_junio.xlsx
+# Regla aplicada: toda variable de `db` que no figura en el codebook se elimina
+# (incluye id, iirep_serial, gse y los bloques de checks idp27/29/31/39/41/43/47/49/55/57,
+# generados por la empresa externa y sin label en el codebook).
+
+# 1. Variables a eliminar --------------------------------------------------
+vars_a_eliminar <- c(
+  "iirep_serial", "cl04nse", 
+  paste0("idp27_", 1:5),
+  paste0("idp29_", 1:5),
+  paste0("idp31_", 1:4),
+  paste0("idp39_", 1:4),
+  paste0("idp41_", 1:6),
+  paste0("idp43_", 1:7),
+  paste0("idp47_", 1:3),
+  paste0("idp49_", 1:4),
+  paste0("idp55_", 1:3),
+  paste0("idp57_", 1:2)
+)
+
+names(db_tall)
+
+db_tall <- db_tall %>%
+  select(-c(quotagerange, gender_non_binary, resp_gender, respondent_gender_recoded, cl04nse,
+  idp40l367, idp40l368, idp40l369, idp42l375, idp42l376, idp42l377, idp42l378, idp42l379, idp42l380))
+
+# 2. Diccionario de renombramiento (nombre_original = nombre_nuevo) --------
+rename_map <- c(
+  quotagerange               = "edad_grupo_cuota",
+  gender_non_binary          = "genero",
+  resp_gender                = "sexo",
+  respondent_gender_recoded  = "genero_recod",
+  cl01stdregion               = "zona",
+  cl02state                  = "region",
+  screener4                  = "condicion_exp",
+  idp22                      = "emocion_pais",
+  idp23                      = "eval_pais_retro",
+  idp24                      = "eval_pais_prospectivo",
+
+  # idp25_1-16: tres problemas mas urgentes (multi-respuesta)
+  idp25_1  = "problema_delincuencia",
+  idp25_2  = "problema_migracion",
+  idp25_3  = "problema_crecimiento",
+  idp25_4  = "problema_desempleo",
+  idp25_5  = "problema_salud",
+  idp25_6  = "problema_corrupcion",
+  idp25_7  = "problema_pobreza",
+  idp25_8  = "problema_sueldos",
+  idp25_9  = "problema_precios",
+  idp25_10 = "problema_educacion",
+  idp25_11 = "problema_pensiones",
+  idp25_12 = "problema_vivienda",
+  idp25_13 = "problema_genero",
+  idp25_14 = "problema_ambiente",
+  idp25_15 = "problema_transporte",
+  idp25_16 = "problema_desigualdad",
+
+  idp26 = "emergencia_economica",
+
+  # idp28l307-311: medidas economicas presentadas al Congreso
+  idp28l307 = "medida_imp_empresas",
+  idp28l308 = "medida_tramites_amb",
+  idp28l309 = "medida_gratuidad",
+  idp28l310 = "medida_contrib_adulto",
+  idp28l311 = "medida_imp_inversionistas",
+
+  # idp30l317-321: percepcion sobre las medidas economicas del gobierno
+  idp30l317 = "percep_benef_empresas",
+  idp30l318 = "percep_necesarias",
+  idp30l319 = "percep_prioriza_ricos",
+  idp30l320 = "percep_bases_solidas",
+  idp30l321 = "percep_confianza_plan",
+
+  # idp32l327-330: percepcion sobre el gobierno actual
+  idp32l327 = "gob_distinto_campana",
+  idp32l328 = "gob_favorece_ricos",
+  idp32l329 = "gob_buen_camino",
+  idp32l330 = "gob_capacidad",
+
+  idp33 = "tiempo_confianza_gob",
+  idp34 = "meta_prioritaria_kast",
+  idp35 = "voto_2da_vuelta",
+  idp36 = "eval_gobierno_kast",
+  idp37 = "gob_vs_expectativa",
+  idp38 = "intervencion_estado",
+
+  # idp40l366-369: trade-offs de decisiones de gobierno
+  idp40l366 = "trade_estado_grande",
+  idp40l367_r = "trade_crecimiento_desigualdad",
+  idp40l368_r = "trade_ambiente_empleo",
+  idp40l369_r = "trade_derechos_laborales",
+
+  # idp42l375-380: forma de proveer servicios en Chile
+  idp42l375_ord = "provision_pensiones",
+  idp42l376_ord = "provision_salud",
+  idp42l377_ord = "provision_educ_escolar",
+  idp42l378_ord = "provision_educ_universitaria",
+  idp42l379_ord = "provision_cuidado_ninos",
+  idp42l380_ord = "provision_cuidado_mayores",
+
+  # idp44l384-390: responsabilidad del Estado de garantizar bienes/servicios
+  idp44l384 = "resp_estado_pensiones",
+  idp44l385 = "resp_estado_empleo",
+  idp44l386 = "resp_estado_educ_uni",
+  idp44l387 = "resp_estado_salud",
+  idp44l388 = "resp_estado_vivienda",
+  idp44l389 = "resp_estado_transporte",
+  idp44l390 = "resp_estado_internet",
+
+  # idp46l393-399: 10 fichas para repartir en gasto publico
+  idp46l393 = "fichas_salud",
+  idp46l394 = "fichas_educ",
+  idp46l395 = "fichas_pensiones",
+  idp46l396 = "fichas_seguridad",
+  idp46l397 = "fichas_vivienda",
+  idp46l398 = "fichas_fomento",
+  idp46l399 = "fichas_redes",
+
+  # idp48l400-402: percepcion de justicia/injusticia
+  idp48l400 = "justo_pension_aporte",
+  idp48l401 = "justo_educ_pago",
+  idp48l402 = "justo_salud_pago",
+
+  # idp50l408-411: actitudes sobre impuestos
+  idp50l408 = "imp_prefiero_menos",
+  idp50l409 = "imp_justo_ricos_mas",
+  idp50l410 = "imp_mal_gasto_estado",
+  idp50l411 = "imp_bajar_genera_empleo",
+
+  idp54 = "chequeo_atencion",
+
+  # idp56l421-423: acuerdo con redistribucion
+  idp56l421 = "redistrib_reducir_diferencias",
+  idp56l422 = "redistrib_ayuda_pobres",
+  idp56l423 = "redistrib_nivel_vida_desemp",
+
+  # idp58l431-432: impuestos a mayores ingresos / herencia
+  idp58l431 = "imp_aumentar_altos_ingresos",
+  idp58l432 = "imp_herencia_ricos",
+
+  idp60 = "educacion_nivel",
+  idp61 = "actividad_principal",
+  idp62 = "ingreso_hogar",
+  idp63 = "llega_fin_mes",
+  idp64 = "impacto_alza_precios",
+  idp65 = "economia_hogar_retro",
+  idp66 = "economia_hogar_prospectiva",
+  idp67 = "autoubicacion_izq_der",
+
+  age_group          = "edad_grupo_banda",
+  idp60clone1        = "educacion_nivel_r",
+  idp62clone1        = "ingreso_hogar_r",
+  cl02stat_eclone1   = "zona_r",
+  idp67clone1        = "autoubicacion_izq_der_r",
+  ponderador         = "ponderador"
+)
+
+# 3. Aplicar sobre `db` -----------------------------------------------------
+db_tall <- db_tall[, !(names(db_tall) %in% vars_a_eliminar)]
+
+faltantes <- setdiff(names(db_tall), names(rename_map))
+if (length(faltantes) > 0) {
+  warning("Variables en db sin mapeo en rename_map: ", paste(faltantes, collapse = ", "))
+}
+
+names(db_tall) <- rename_map[names(db_tall)]
+
+names(db_tall)[1] <- "id"
+names(db_tall)[2] <- "sexo"        # ejemplo
+names(db_tall)[3] <- "tramo_edad"
+names(db_tall)[4] <- "quintil_ingreso"
+names(db_tall)[5] <- "educ"        # ejemplo
+names(db_tall)[6] <- "ideologia"     # ejemplo# ejemplo
+names(db_tall)[101] <- "gse" 
+
+db_tall <- db_tall |> 
+  slice_sample(n = 1000, replace = T) |> 
+  select(-id)
+
+db_tall <- rowid_to_column(db_tall, "id")
+
+# Introducir exactamente 50 casos NUEVOS con datos perdidos (NA) al azar
+# En cada caso seleccionado se pierden entre 1 y 3 variables al azar.
+# Se muestrea solo entre filas que ya estaban completas, para no mezclar
+# estos NA con missing preexistente en los datos (p. ej. "sexo" ya trae NA reales).
+set.seed(123)
+
+vars_candidatas <- setdiff(names(db_tall), "id")
+
+n_casos_na   <- 50
+filas_compl  <- which(complete.cases(db_tall))
+filas_na     <- sample(filas_compl, n_casos_na)
+
+for (fila in filas_na) {
+  n_vars   <- sample(1:3, 1)
+  vars_sel <- sample(vars_candidatas, n_vars)
+  db_tall[fila, vars_sel] <- NA
+}
+
+cat("Filas incompletas totales:", sum(!complete.cases(db_tall)), "\n")
+
+sum(is.na(db_tall))  # Verificación: cuántos NA se introdujeron
+
+colSums(is.na(db_tall))  # Verificación: cuántos NA por variable
+
+na.omit(db_tall)
+
+bbdd_clima_sample <- db_tall
+
+write.csv(bbdd_clima_sample, "BBDD_Clima_Junio_Sample.csv", row.names = FALSE)
+save(bbdd_clima_sample, file = "BBDD_Clima_Junio_Sample.RData")
